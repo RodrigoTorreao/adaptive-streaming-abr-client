@@ -8,12 +8,34 @@ For Entrega 2+, extend with: --policy 2|3, --server-a <url>, --server-b <url>
 """
 
 import time
-from config import SERVER_A, NUM_SEGMENTS, OUTPUT_CSV, SEGMENT_DURATION
+from config import SERVER_A, NUM_SEGMENTS, OUTPUT_CSV, SEGMENT_DURATION, ACTIVE_POLICY
 from manifest import fetch_manifest, parse_servers, parse_qualities
 from downloader import download_segment
 from buffer import BufferManager
 from metrics import MetricsLogger, generate_graphs
 from abr.rate_based import RateBasedPolicy
+
+
+def _build_abr():
+    """Return the ABR policy instance for the current ACTIVE_POLICY."""
+    if ACTIVE_POLICY == 1:
+        from abr.rate_based import RateBasedPolicy
+        return RateBasedPolicy()
+    elif ACTIVE_POLICY == 2:
+        from abr.policy2 import Policy2
+        return Policy2()
+    elif ACTIVE_POLICY == 3:
+        from abr.policy3 import Policy3
+        return Policy3()
+    raise ValueError(f"Unknown ACTIVE_POLICY: {ACTIVE_POLICY}")
+
+
+def _build_failover(servers):
+    """Return a FailoverManager for Entrega 2+, or None for Entrega 1."""
+    if ACTIVE_POLICY >= 2:
+        from failover import FailoverManager
+        return FailoverManager(servers)
+    return None
 
 
 def main():
@@ -23,11 +45,13 @@ def main():
     qualities = parse_qualities(manifest)  # ordered by bitrate ascending
 
     # 2. Instantiate components
-    abr = RateBasedPolicy()
+    abr = _build_abr()
     buf = BufferManager()
     logger = MetricsLogger(OUTPUT_CSV)
+    failover = _build_failover(servers)
 
-    server_url = servers[0]   # Entrega 1: always Server A
+    # Entrega 1: always Server A. Entrega 2+: managed by FailoverManager.
+    server_url = failover.current_server if failover else servers[0]
     jitter_ewma = 0.0
     ewma_alpha = 0.2          # smoothing factor for jitter EWMA
     failover_total = 0
@@ -51,8 +75,16 @@ def main():
             qualities=qualities,
         )
 
-        # 3d. Download segment
-        result = download_segment(server_url, chosen, seg_num)
+        # 3d. Download segment (with failover on error for Entrega 2+)
+        try:
+            result = download_segment(server_url, chosen, seg_num)
+        except Exception:
+            if failover:
+                server_url = failover.handle_failure()
+                failover_total = failover.failover_count
+                result = download_segment(server_url, chosen, seg_num)
+            else:
+                raise
 
         # 3e. Update ABR throughput history
         abr.update_throughput(result.throughput_kbps)

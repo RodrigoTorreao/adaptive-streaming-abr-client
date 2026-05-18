@@ -170,11 +170,24 @@ nível do buffer nem tendências de longo prazo.
 
 ### O que cada entrega acrescenta ao código
 
-| Entrega | Módulos novos / alterados |
-|---|---|
-| Entrega 1 | `manifest.py`, `downloader.py`, `buffer.py`, `metrics.py`, `abr/rate_based.py` |
-| Entrega 2 | `abr/policy2.py`, `failover.py` |
-| Final | `abr/policy3.py`, análise Wireshark no relatório |
+Cada entrega é **aditiva**: novos arquivos são implementados, mas nenhum arquivo anterior é
+quebrado. Para trocar de entrega, basta alterar `ACTIVE_POLICY` em `config.py`:
+
+```python
+# config.py
+ACTIVE_POLICY = 1   # Entrega 1 — Rate-Based baseline
+# ACTIVE_POLICY = 2 # Entrega 2 — Policy 2 + failover
+# ACTIVE_POLICY = 3 # Final     — Policy 3 estatística
+```
+
+| Entrega | `ACTIVE_POLICY` | Arquivos implementados nesta entrega |
+|---|---|---|
+| Entrega 1 | `1` | `manifest.py`, `downloader.py`, `buffer.py`, `metrics.py`, `abr/rate_based.py` |
+| Entrega 2 | `2` | `abr/policy2.py`, `failover.py` |
+| Final     | `3` | `abr/policy3.py` |
+
+> `main.py` e os demais módulos **não são modificados** entre entregas — o seletor em
+> `config.py` controla quais componentes estão ativos.
 
 ---
 
