@@ -12,7 +12,7 @@ import urllib.request
 
 import numpy as np
 
-from config import CHUNK_SIZE
+from config import CHUNK_SIZE, IDENTIFY_HEADER
 
 
 @dataclass
@@ -40,7 +40,7 @@ def download_segment(server_url: str, quality: dict, segment_num: int) -> Segmen
 
     path = quality['url_path'].lstrip('/')
     url = f"{server_url.rstrip('/')}/{path}?n={segment_num}"
-    req = urllib.request.Request(url, headers={'User-Agent': 'Grupo 6'})
+    req = urllib.request.Request(url, headers={'User-Agent': IDENTIFY_HEADER})
 
     chunk_timestamps = [] # Registro do instante em que cada chunk foi recebido
 

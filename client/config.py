@@ -15,4 +15,5 @@ MIN_BUFFER_TO_PLAY = 4.0    # seconds needed for continuous play
 NUM_SEGMENTS = 10
 THROUGHPUT_WINDOW = 3       # number of past segments used for avg throughput
 CHUNK_SIZE = 4096           # bytes per HTTP read chunk
+IDENTIFY_HEADER = 'GRUPO 6' # identificador do grupo
 OUTPUT_CSV = "metrics.csv"

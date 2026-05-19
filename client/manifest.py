@@ -10,6 +10,8 @@ Manifest format (v2.0):
 import urllib.request
 import json
 
+from config import IDENTIFY_HEADER
+
 
 def fetch_manifest(server_url: str) -> dict:
     """
@@ -20,7 +22,7 @@ def fetch_manifest(server_url: str) -> dict:
     url = f"{server_url.rstrip('/')}/manifest"
 
     # Cria requisição com cabeçalho de identificação do nosso grupo.
-    req = urllib.request.Request(url, headers={'User-Agent': 'GRUPO 6'})
+    req = urllib.request.Request(url, headers={'User-Agent': IDENTIFY_HEADER})
 
     # Abre conexão com timeout de 5 segundos.
     # A conexão é fechada automaticamente após o término
