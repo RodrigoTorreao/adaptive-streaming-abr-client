@@ -38,95 +38,113 @@ def _build_failover(servers):
     return None
 
 
+# def main():
+#     # 1. Fetch manifest and extract server list + quality representations
+#     manifest = fetch_manifest(SERVER_A)
+#     servers = parse_servers(manifest)      # ordered by priority
+#     qualities = parse_qualities(manifest)  # ordered by bitrate ascending
+
+#     # 2. Instantiate components
+#     abr = _build_abr()
+#     buf = BufferManager()
+#     logger = MetricsLogger(OUTPUT_CSV)
+#     failover = _build_failover(servers)
+
+#     # Entrega 1: always Server A. Entrega 2+: managed by FailoverManager.
+#     server_url = failover.current_server if failover else servers[0]
+#     jitter_ewma = 0.0
+#     ewma_alpha = 0.2          # smoothing factor for jitter EWMA
+#     failover_total = 0
+#     last_segment_time = time.time()
+
+#     # 3. Download loop
+#     for seg_num in range(1, NUM_SEGMENTS + 1):
+
+#         # 3a. Update buffer with real time elapsed since last segment
+#         now = time.time()
+#         buf.consume(now - last_segment_time)
+#         last_segment_time = now
+
+#         # 3b. Record buffer state before the ABR decision
+#         buffer_can_play = 1 if buf.can_play() else 0
+
+#         # 3c. ABR decision (throughput = 0 on first segment → picks lowest quality)
+#         chosen = abr.select_quality(
+#             throughput_kbps=abr._estimated_throughput(),
+#             buffer_level_s=buf.buffer_level_s,
+#             qualities=qualities,
+#         )
+
+#         # 3d. Download segment (with failover on error for Entrega 2+)
+#         try:
+#             result = download_segment(server_url, chosen, seg_num)
+#         except Exception:
+#             if failover:
+#                 server_url = failover.handle_failure()
+#                 failover_total = failover.failover_count
+#                 result = download_segment(server_url, chosen, seg_num)
+#             else:
+#                 raise
+
+#         # 3e. Update ABR throughput history
+#         abr.update_throughput(result.throughput_kbps)
+
+#         # 3f. Update jitter EWMA
+#         jitter_ewma = ewma_alpha * result.jitter_network_ms + (1 - ewma_alpha) * jitter_ewma
+
+#         # 3g. Update buffer and detect rebuffering
+#         rebuffer, stall_s = buf.check_rebuffer()
+#         buf.add_segment(SEGMENT_DURATION)
+
+#         # 3h. Log metrics
+#         import datetime
+#         logger.log_segment({
+#             "segment": seg_num,
+#             "timestamp": datetime.datetime.now().isoformat(),
+#             "server_id": "A",
+#             "quality": chosen["quality"],
+#             "bitrate_kbps": chosen["bitrate_kbps"],
+#             "vazao_kbps": round(result.throughput_kbps, 2),
+#             "download_time_s": round(result.download_time_s, 4),
+#             "jitter_network_ms": round(result.jitter_network_ms, 2),
+#             "jitter_ewma_ms": round(jitter_ewma, 2),
+#             "buffer_level_s": round(buf.buffer_level_s, 2),
+#             "buffer_can_play": buffer_can_play,
+#             "rebuffer_event": 1 if rebuffer else 0,
+#             "stall_duration_s": round(stall_s, 3),
+#             "failover_total": failover_total,
+#         })
+
+#         print(
+#             f"[seg {seg_num:02d}] quality={chosen['quality']:5s}  "
+#             f"vazao={result.throughput_kbps:7.0f} kbps  "
+#             f"buffer={buf.buffer_level_s:.1f}s  "
+#             f"can_play={buffer_can_play}"
+#         )
+
+#     # 4. Finalize
+#     logger.close()
+#     generate_graphs(OUTPUT_CSV)
+#     print(f"\nMetrics saved to {OUTPUT_CSV}")
+
+
 def main():
-    # 1. Fetch manifest and extract server list + quality representations
-    manifest = fetch_manifest(SERVER_A)
-    servers = parse_servers(manifest)      # ordered by priority
-    qualities = parse_qualities(manifest)  # ordered by bitrate ascending
-
-    # 2. Instantiate components
-    abr = _build_abr()
-    buf = BufferManager()
-    logger = MetricsLogger(OUTPUT_CSV)
-    failover = _build_failover(servers)
-
-    # Entrega 1: always Server A. Entrega 2+: managed by FailoverManager.
-    server_url = failover.current_server if failover else servers[0]
-    jitter_ewma = 0.0
-    ewma_alpha = 0.2          # smoothing factor for jitter EWMA
-    failover_total = 0
-    last_segment_time = time.time()
-
-    # 3. Download loop
-    for seg_num in range(1, NUM_SEGMENTS + 1):
-
-        # 3a. Update buffer with real time elapsed since last segment
-        now = time.time()
-        buf.consume(now - last_segment_time)
-        last_segment_time = now
-
-        # 3b. Record buffer state before the ABR decision
-        buffer_can_play = 1 if buf.can_play() else 0
-
-        # 3c. ABR decision (throughput = 0 on first segment → picks lowest quality)
-        chosen = abr.select_quality(
-            throughput_kbps=abr._estimated_throughput(),
-            buffer_level_s=buf.buffer_level_s,
-            qualities=qualities,
-        )
-
-        # 3d. Download segment (with failover on error for Entrega 2+)
-        try:
-            result = download_segment(server_url, chosen, seg_num)
-        except Exception:
-            if failover:
-                server_url = failover.handle_failure()
-                failover_total = failover.failover_count
-                result = download_segment(server_url, chosen, seg_num)
-            else:
-                raise
-
-        # 3e. Update ABR throughput history
-        abr.update_throughput(result.throughput_kbps)
-
-        # 3f. Update jitter EWMA
-        jitter_ewma = ewma_alpha * result.jitter_network_ms + (1 - ewma_alpha) * jitter_ewma
-
-        # 3g. Update buffer and detect rebuffering
-        rebuffer, stall_s = buf.check_rebuffer()
-        buf.add_segment(SEGMENT_DURATION)
-
-        # 3h. Log metrics
-        import datetime
-        logger.log_segment({
-            "segment": seg_num,
-            "timestamp": datetime.datetime.now().isoformat(),
-            "server_id": "A",
-            "quality": chosen["quality"],
-            "bitrate_kbps": chosen["bitrate_kbps"],
-            "vazao_kbps": round(result.throughput_kbps, 2),
-            "download_time_s": round(result.download_time_s, 4),
-            "jitter_network_ms": round(result.jitter_network_ms, 2),
-            "jitter_ewma_ms": round(jitter_ewma, 2),
-            "buffer_level_s": round(buf.buffer_level_s, 2),
-            "buffer_can_play": buffer_can_play,
-            "rebuffer_event": 1 if rebuffer else 0,
-            "stall_duration_s": round(stall_s, 3),
-            "failover_total": failover_total,
-        })
-
-        print(
-            f"[seg {seg_num:02d}] quality={chosen['quality']:5s}  "
-            f"vazao={result.throughput_kbps:7.0f} kbps  "
-            f"buffer={buf.buffer_level_s:.1f}s  "
-            f"can_play={buffer_can_play}"
-        )
-
-    # 4. Finalize
-    logger.close()
-    generate_graphs(OUTPUT_CSV)
-    print(f"\nMetrics saved to {OUTPUT_CSV}")
-
+    print(f"=== Iniciando Cliente ABR (Política Ativa: {ACTIVE_POLICY}) ===")
+    
+    # 1. Obter e processar o manifesto do servidor inicial (SERVER_A)
+    try:
+        print(f"Baixando manifesto de: {SERVER_A}")
+        manifest = fetch_manifest(SERVER_A)
+        
+        # Ordena os servidores por prioridade e as qualidades por bitrate
+        available_servers = parse_servers(manifest)
+        available_qualities = parse_qualities(manifest)
+        
+        print(f"✓ Servidores encontrados: {available_servers}")
+        print(f"✓ Qualidades disponíveis (bitrates): {[q['bitrate_kbps'] for q in available_qualities]} kbps")
+    except Exception as e:
+        print(f"❌ Erro crítico ao processar o manifesto: {e}")
+        return
 
 if __name__ == "__main__":
     main()
