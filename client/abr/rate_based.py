@@ -1,14 +1,8 @@
 """
 Política 1 — Rate-Based ABR (Entrega 1 / Baseline).
 
-Selects the highest quality whose bitrate fits within the estimated
-available bandwidth, applying a safety factor to avoid overestimation.
-
-Known limitations (to be addressed in Entrega 2):
-- Reacts to instantaneous throughput, causing quality oscillation on
-  unstable networks.
-- Does not consider buffer level in the decision.
-- No hysteresis: can flip quality up/down between consecutive segments.
+Seleciona a maior qualidade cujo bitrate caiba dentro da banda estimada
+disponível, aplicando um fator de segurança para evitar superestimar a rede.
 """
 
 from config import SAFETY_FACTOR, THROUGHPUT_WINDOW
@@ -22,12 +16,18 @@ class RateBasedPolicy(ABRPolicy):
         self._throughput_history: list[float] = []
 
     def update_throughput(self, measured_kbps: float) -> None:
-        """Record a new throughput measurement (call after each download)."""
-        pass
+        """Registra uma nova medição de vazão (após cada download)."""
+        self._throughput_history.append(measured_kbps)
+        if len(self._throughput_history) > self.window:
+            self._throughput_history.pop(0)
 
     def _estimated_throughput(self) -> float:
-        """Return average of the last `window` throughput measurements."""
-        pass
+        """Retorna a média das últimas medições de vazão da janela."""
+        if not self._throughput_history:
+            return 0.0  
+        
+        # Média aritmética simples dos valores salvos no histórico
+        return sum(self._throughput_history) / len(self._throughput_history)
 
     def select_quality(
         self,
@@ -36,9 +36,20 @@ class RateBasedPolicy(ABRPolicy):
         qualities: list[dict],
     ) -> dict:
         """
-        Algorithm:
-          effective = avg(last WINDOW measurements) * safety_factor
-          pick the highest quality where bitrate_kbps <= effective
-          fallback to lowest quality if none fits
+        Algoritmo:
+          vazao_efetiva = media(ultimas N medicoes) * fator_seguranca
+          escolhe a maior qualidade onde bitrate_kbps <= vazao_efetiva
+          retorna a menor qualidade (fallback) se nenhuma couber
         """
-        pass
+        # Aplica o fator de segurança
+        effective_throughput = throughput_kbps * self.safety_factor
+        
+        # Como 'qualities' já vem ordenada do menor para o maior, percorremos a 
+        # lista de trás para frente para achar a maior qualidade que cabe.
+        for q in reversed(qualities):
+            if q['bitrate_kbps'] <= effective_throughput:
+                return q
+                
+        # Fallback: se a rede não for o suficiente para nenhuma qualidade pega a
+        #  menor disponível
+        return qualities[0]
