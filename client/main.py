@@ -17,7 +17,6 @@ from abr.rate_based import RateBasedPolicy
 
 
 def _build_abr():
-    """Return the ABR policy instance for the current ACTIVE_POLICY."""
     if ACTIVE_POLICY == 1:
         from abr.rate_based import RateBasedPolicy
         return RateBasedPolicy()
@@ -117,10 +116,10 @@ def main():
 
         print(
             f"[seg {seg_num:02d}] quality={chosen['quality']:5s}  "
-            f"vazao={result.throughput_kbps:7.0f} kbps  "
+            f"vazao={result.throughput_kbps:4.0f} kbps  "
             f"buffer={buf.buffer_level_s:.1f}s  "
-            f"can_play={buffer_can_play}"
-        )
+            f"can_play={True if buffer_can_play == 1 else False}"        
+            )
 
     # 4. Finalize
     logger.close()
