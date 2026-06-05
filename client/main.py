@@ -50,7 +50,7 @@ def main():
     failover = _build_failover(servers)
 
     # Entrega 1: always Server A. Entrega 2+: managed by FailoverManager.
-    server_url = failover.current_server if failover else servers[0]
+    server_url = (failover.current_server if failover else None) or servers[0]
     jitter_ewma = 0.0
     ewma_alpha = 0.2          # smoothing factor for jitter EWMA
     failover_total = 0
