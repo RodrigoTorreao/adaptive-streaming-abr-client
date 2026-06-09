@@ -54,27 +54,24 @@ def main():
     jitter_ewma = 0.0
     ewma_alpha = 0.2          # smoothing factor for jitter EWMA
     failover_total = 0
-    last_segment_time = time.time()
 
     # 3. Download loop
     for seg_num in range(1, NUM_SEGMENTS + 1):
 
-        # 3a. Update buffer with real time elapsed since last segment
-        now = time.time()
-        buf.consume(now - last_segment_time)
-        last_segment_time = now
-
-        # 3b. Record buffer state before the ABR decision
+        # 3a. Record buffer state before the ABR decision.
+        # buffer_can_play determines whether the player is playing or stalled
+        # during the upcoming download, so it must be checked here — before
+        # the segment is fetched — to correctly drive the consume step below.
         buffer_can_play = 1 if buf.can_play() else 0
 
-        # 3c. ABR decision (throughput = 0 on first segment → picks lowest quality)
+        # 3b. ABR decision (throughput = 0 on first segment → picks lowest quality)
         chosen = abr.select_quality(
             throughput_kbps=abr._estimated_throughput(),
             buffer_level_s=buf.buffer_level_s,
             qualities=qualities,
         )
 
-        # 3d. Download segment (with failover on error for Entrega 2+)
+        # 3c. Download segment (with failover on error for Entrega 2+)
         try:
             result = download_segment(server_url, chosen, seg_num)
         except Exception:
@@ -85,11 +82,23 @@ def main():
             else:
                 raise
 
-        # 3e. Update ABR throughput history
+        # 3d. Update ABR throughput history
         abr.update_throughput(result.throughput_kbps)
 
-        # 3f. Update jitter EWMA
+        # 3e. Update jitter EWMA
         jitter_ewma = ewma_alpha * result.jitter_network_ms + (1 - ewma_alpha) * jitter_ewma
+
+        # 3f. Consume buffer only while the player is actually playing.
+        # The exact time to deduct is result.download_time_s: that is how long
+        # the download took, which is precisely the real-time interval during
+        # which the player would have been consuming content.
+        # When buffer_can_play == 0 the player is stalled; no content is consumed
+        # but the full download time counts as stall duration.
+        if buffer_can_play == 1:
+            buf.consume(result.download_time_s)
+        else:
+            buf._had_stall = True
+            buf._stall_duration = result.download_time_s
 
         # 3g. Update buffer and detect rebuffering
         rebuffer, stall_s = buf.check_rebuffer()
