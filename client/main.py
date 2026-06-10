@@ -29,11 +29,11 @@ def _build_abr():
     raise ValueError(f"Unknown ACTIVE_POLICY: {ACTIVE_POLICY}")
 
 
-def _build_failover(servers):
+def _build_failover(manifest):
     """Return a FailoverManager for Entrega 2+, or None for Entrega 1."""
     if ACTIVE_POLICY >= 2:
-        from failover import FailoverManager
-        return FailoverManager(servers)
+        from failover import build_failover_manager
+        return build_failover_manager(manifest)
     return None
 
 
@@ -47,10 +47,10 @@ def main():
     abr = _build_abr()
     buf = BufferManager()
     logger = MetricsLogger(OUTPUT_CSV)
-    failover = _build_failover(servers)
+    failover = _build_failover(manifest)
 
     # Entrega 1: always Server A. Entrega 2+: managed by FailoverManager.
-    server_url = (failover.current_server if failover else None) or servers[0]
+    server_url = failover.current_server if failover else servers[0]
     jitter_ewma = 0.0
     ewma_alpha = 0.2          # smoothing factor for jitter EWMA
     failover_total = 0
@@ -82,6 +82,8 @@ def main():
             else:
                 raise
 
+        current_server_id = failover.current_server_id if failover else "A"
+
         # 3d. Update ABR throughput history
         abr.update_throughput(result.throughput_kbps)
 
@@ -109,7 +111,7 @@ def main():
         logger.log_segment({
             "segment": seg_num,
             "timestamp": datetime.datetime.now().isoformat(),
-            "server_id": "A",
+            "server_id": current_server_id,
             "quality": chosen["quality"],
             "bitrate_kbps": chosen["bitrate_kbps"],
             "vazao_kbps": round(result.throughput_kbps, 2),
