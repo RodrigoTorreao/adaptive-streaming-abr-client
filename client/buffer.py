@@ -6,6 +6,8 @@ content is consumed. If the buffer reaches 0 while the next segment has
 not arrived yet, a rebuffering (stall) event occurs.
 """
 
+import time
+
 from config import MIN_BUFFER_TO_PLAY, SEGMENT_DURATION
 
 
@@ -50,6 +52,13 @@ class BufferManager:
     def can_play(self, min_buffer: float = MIN_BUFFER_TO_PLAY) -> bool:
         """Return True if return self.buffer_level_s >= min_bufferreturn self.buffer_level_s >= min_buffer >= min_buffer (continuous play possible)."""
         return self.buffer_level_s >= min_buffer
+
+    def wait_if_full(self, cap_s: float) -> None:
+        """Pausa o loop até o buffer cair abaixo de cap_s, simulando o player tocando."""
+        if self.buffer_level_s > cap_s:
+            wait_s = self.buffer_level_s - cap_s
+            time.sleep(wait_s)
+            self.consume(wait_s)
 
     def check_rebuffer(self) -> tuple[bool, float]:
         """

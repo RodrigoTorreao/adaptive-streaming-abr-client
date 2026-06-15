@@ -8,7 +8,7 @@ For Entrega 2+, extend with: --policy 2|3, --server-a <url>, --server-b <url>
 """
 
 import time
-from config import SERVER_A, NUM_SEGMENTS, OUTPUT_CSV, SEGMENT_DURATION, ACTIVE_POLICY
+from config import SERVER_A, NUM_SEGMENTS, OUTPUT_CSV, SEGMENT_DURATION, ACTIVE_POLICY, BUFFER_CAP_S
 from manifest import fetch_manifest, parse_servers, parse_qualities
 from downloader import download_segment
 from buffer import BufferManager
@@ -58,7 +58,11 @@ def main():
     # 3. Download loop
     for seg_num in range(1, NUM_SEGMENTS + 1):
 
-        # 3a. Record buffer state before the ABR decision.
+        # 3a. Cap buffer: if buffer exceeded the limit, pause until it drains (Entrega 2+)
+        if ACTIVE_POLICY >= 2:
+            buf.wait_if_full(BUFFER_CAP_S)
+
+        # 3b. Record buffer state before the ABR decision.
         # buffer_can_play determines whether the player is playing or stalled
         # during the upcoming download, so it must be checked here — before
         # the segment is fetched — to correctly drive the consume step below.
