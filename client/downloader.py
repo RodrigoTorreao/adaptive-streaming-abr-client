@@ -100,5 +100,3 @@ def download_segment(server_url: str, quality: dict, segment_num: int) -> Segmen
         throughput_kbps=throughput_kbps,
         jitter_network_ms=jitter_network_ms
     )
-
-    pass

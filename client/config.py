@@ -9,7 +9,7 @@ SERVER_B = "http://137.131.178.229:8081"
 ACTIVE_POLICY = 2
 # ─────────────────────────────────────────────────────────────────────────────
 
-SAFETY_FACTOR = 0.95
+SAFETY_FACTOR = 0.92
 SEGMENT_DURATION = 4.0      # seconds of video per segment
 MIN_BUFFER_TO_PLAY = 4.0    # seconds needed for continuous play
 NUM_SEGMENTS = 20
@@ -19,9 +19,11 @@ IDENTIFY_HEADER = 'GRUPO 6' # identificador do grupo
 OUTPUT_CSV = "metrics.csv"
 
 # ── Buffer-Based ABR (Policy 2) ─────────────────────────────────────────────
-BUFFER_MIN_S  = 4.0   # abaixo → qualidade mínima (emergência)
-BUFFER_LOW_S  = 12.0  # abaixo → desce um nível
-BUFFER_HIGH_S = 18.0  # abaixo → mantém qualidade
-BUFFER_MAX_S  = 25.0  # acima → qualidade máxima
-BUFFER_CAP_S  = 30.0  # teto absoluto — loop pausa até drenar até esse nível
+BUFFER_CRITICAL_S = 1.0   # Abaixo disso: rebuffering iminente
+BUFFER_MIN_S      = 4.0   # Abaixo disso: qualidade mínima (emergência)
+BUFFER_LOW_S      = 8.0  # Abaixo disso: desce um nível (conservador)
+BUFFER_TARGET_S   = 15.0  # Ponto de equilíbrio e alvo do ABR
+BUFFER_HIGH_S     = 12.0  # Abaixo disso: mantém qualidade atual
+BUFFER_MAX_S      = 15.0  # Acima disso: pede qualidade máxima
+BUFFER_CAP_S      = 15.0  # Teto absoluto — loop pausa (sleep) só se ultrapassar isso
 # ─────────────────────────────────────────────────────────────────────────────

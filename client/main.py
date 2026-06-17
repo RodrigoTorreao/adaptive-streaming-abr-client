@@ -7,8 +7,9 @@ Usage:
 For Entrega 2+, extend with: --policy 2|3, --server-a <url>, --server-b <url>
 """
 
+import datetime
 import time
-from config import SERVER_A, NUM_SEGMENTS, OUTPUT_CSV, SEGMENT_DURATION, ACTIVE_POLICY, BUFFER_CAP_S
+from config import SERVER_A, NUM_SEGMENTS, OUTPUT_CSV, SEGMENT_DURATION, ACTIVE_POLICY, BUFFER_CAP_S, BUFFER_TARGET_S
 from manifest import fetch_manifest, parse_servers, parse_qualities
 from downloader import download_segment
 from buffer import BufferManager
@@ -58,11 +59,7 @@ def main():
     # 3. Download loop
     for seg_num in range(1, NUM_SEGMENTS + 1):
 
-        # 3a. Cap buffer: if buffer exceeded the limit, pause until it drains (Entrega 2+)
-        if ACTIVE_POLICY >= 2:
-            buf.wait_if_full(BUFFER_CAP_S)
-
-        # 3b. Record buffer state before the ABR decision.
+        # 3a. Record buffer state before the ABR decision.
         # buffer_can_play determines whether the player is playing or stalled
         # during the upcoming download, so it must be checked here — before
         # the segment is fetched — to correctly drive the consume step below.
@@ -77,9 +74,21 @@ def main():
 
         # 3c. Download segment (with failover on error for Entrega 2+)
         try:
+            # --- ÁREA DE TESTE DE FAILOVER ---
+            if seg_num == 10 and server_url == servers[0]:
+                print(f"\n[ALERTA] Simulando queda do Servidor A no segmento {seg_num}!")
+                raise TimeoutError("Simulação de falha catastrófica")
+            # ---------------------------------
+            
             result = download_segment(server_url, chosen, seg_num)
+            
         except Exception:
             if failover:
+                tempo_de_timeout_s = 5.0 
+                
+                if buffer_can_play == 1:
+                    buf.consume(tempo_de_timeout_s)
+
                 server_url = failover.handle_failure()
                 failover_total = failover.failover_count
                 result = download_segment(server_url, chosen, seg_num)
@@ -95,13 +104,9 @@ def main():
         jitter_ewma = ewma_alpha * result.jitter_network_ms + (1 - ewma_alpha) * jitter_ewma
 
         # 3f. Consume buffer only while the player is actually playing.
-        # The exact time to deduct is result.download_time_s: that is how long
-        # the download took, which is precisely the real-time interval during
-        # which the player would have been consuming content.
-        # When buffer_can_play == 0 the player is stalled; no content is consumed
-        # but the full download time counts as stall duration.
+        # The exact time to deduct is result.download_time_s
         if buffer_can_play == 1:
-            buf.consume(result.download_time_s)
+            buf.consume(result.download_time_s) 
         else:
             buf._had_stall = True
             buf._stall_duration = result.download_time_s
@@ -110,8 +115,25 @@ def main():
         rebuffer, stall_s = buf.check_rebuffer()
         buf.add_segment(SEGMENT_DURATION)
 
-        # 3h. Log metrics
-        import datetime
+        # ====================================================================
+        # 3h. Cap buffer: Pacing (espera) feito APÓS o download do segmento.
+        # Agora o "result" existe e não teremos mais erro no segmento 1.
+        # ====================================================================
+        if ACTIVE_POLICY >= 2:
+            wait_s = 0.0 
+    
+            if buf.buffer_level_s >= (BUFFER_TARGET_S):
+                # Pega o tempo que sobrou do download para inteirar o segmento
+                wait_s = max(0.0, SEGMENT_DURATION - result.download_time_s)
+        
+            if wait_s > 0:
+                time.sleep(wait_s)
+                buf.consume(wait_s) # O usuário continuou assistindo enquanto o programa dormia
+
+            # Fail-safe absoluto (Teto de 30s)
+            buf.wait_if_full(BUFFER_CAP_S)
+
+        # 3i. Log metrics
         logger.log_segment({
             "segment": seg_num,
             "timestamp": datetime.datetime.now().isoformat(),
@@ -134,7 +156,7 @@ def main():
             f"vazao={result.throughput_kbps:4.0f} kbps  "
             f"buffer={buf.buffer_level_s:.1f}s  "
             f"can_play={True if buffer_can_play == 1 else False}"        
-            )
+        )
 
     # 4. Finalize
     logger.close()

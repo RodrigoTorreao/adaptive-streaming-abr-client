@@ -52,7 +52,7 @@ class Policy2(ABRPolicy):
             # Buffer baixo: desce um nível
             self._quality_index = max(0, self._quality_index - 1)
 
-        elif buffer_level_s < BUFFER_HIGH_S:
+        elif buffer_level_s <= BUFFER_HIGH_S:
             # Zona neutra: mantém qualidade atual
             pass
 
