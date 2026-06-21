@@ -9,7 +9,7 @@ For Entrega 2+, extend with: --policy 2|3, --server-a <url>, --server-b <url>
 
 import datetime
 import time
-from config import SERVER_A, NUM_SEGMENTS, OUTPUT_CSV, SEGMENT_DURATION, ACTIVE_POLICY, BUFFER_CAP_S, BUFFER_TARGET_S
+from config import SERVER_A, NUM_SEGMENTS, OUTPUT_CSV, SEGMENT_DURATION, ACTIVE_POLICY, BUFFER_CAP_S, BUFFER_TARGET_S, MIN_BUFFER_TO_PLAY
 from manifest import fetch_manifest, parse_servers, parse_qualities
 from downloader import download_segment
 from buffer import BufferManager
@@ -43,6 +43,7 @@ def main():
     manifest = fetch_manifest(SERVER_A)
     servers = parse_servers(manifest)      # ordered by priority
     qualities = parse_qualities(manifest)  # ordered by bitrate ascending
+    seg_duration = manifest.get("segment_duration_s", SEGMENT_DURATION)
 
     # 2. Instantiate components
     abr = _build_abr()
@@ -97,8 +98,8 @@ def main():
 
         current_server_id = failover.current_server_id if failover else "A"
 
-        # 3d. Update ABR throughput history
-        abr.update_throughput(result.throughput_kbps)
+        # 3d. Update ABR throughput history (jitter_ms usado pela Policy3)
+        abr.update_throughput(result.throughput_kbps, result.jitter_network_ms)
 
         # 3e. Update jitter EWMA
         jitter_ewma = ewma_alpha * result.jitter_network_ms + (1 - ewma_alpha) * jitter_ewma
@@ -113,7 +114,7 @@ def main():
 
         # 3g. Update buffer and detect rebuffering
         rebuffer, stall_s = buf.check_rebuffer()
-        buf.add_segment(SEGMENT_DURATION)
+        buf.add_segment(seg_duration)
 
         # ====================================================================
         # 3h. Cap buffer: Pacing (espera) feito APÓS o download do segmento.

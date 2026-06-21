@@ -15,7 +15,7 @@ class RateBasedPolicy(ABRPolicy):
         self.window = window
         self._throughput_history: list[float] = []
 
-    def update_throughput(self, measured_kbps: float) -> None:
+    def update_throughput(self, measured_kbps: float, jitter_ms: float = 0.0) -> None:
         """Registra uma nova medição de vazão (após cada download)."""
         self._throughput_history.append(measured_kbps)
         if len(self._throughput_history) > self.window:

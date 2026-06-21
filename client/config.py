@@ -6,7 +6,7 @@ SERVER_B = "http://137.131.178.229:8081"
 #   1 → Rate-Based baseline only          (Entrega 1)
 #   2 → Policy 2 + failover               (Entrega 2)
 #   3 → Policy 3 (statistical/heuristic)  (Apresentação Final)
-ACTIVE_POLICY = 2
+ACTIVE_POLICY = 3
 # ─────────────────────────────────────────────────────────────────────────────
 
 SAFETY_FACTOR = 0.92

@@ -24,7 +24,7 @@ class Policy2(ABRPolicy):
 
     # ── Throughput tracking (exigido por main.py) ─────────────────────────────
 
-    def update_throughput(self, measured_kbps: float) -> None:
+    def update_throughput(self, measured_kbps: float, jitter_ms: float = 0.0) -> None:
         self._throughput_history.append(measured_kbps)
         if len(self._throughput_history) > THROUGHPUT_WINDOW:
             self._throughput_history.pop(0)
