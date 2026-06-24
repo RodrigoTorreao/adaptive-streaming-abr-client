@@ -75,12 +75,6 @@ def main():
 
         # 3c. Download segment (with failover on error for Entrega 2+)
         try:
-            # --- ÁREA DE TESTE DE FAILOVER ---
-            if seg_num == 10 and server_url == servers[0]:
-                print(f"\n[ALERTA] Simulando queda do Servidor A no segmento {seg_num}!")
-                raise TimeoutError("Simulação de falha catastrófica")
-            # ---------------------------------
-            
             result = download_segment(server_url, chosen, seg_num)
             
         except Exception:
@@ -131,8 +125,8 @@ def main():
                 time.sleep(wait_s)
                 buf.consume(wait_s) # O usuário continuou assistindo enquanto o programa dormia
 
-            # Fail-safe absoluto (Teto de 30s)
-            buf.wait_if_full(BUFFER_CAP_S)
+        # Fail-safe absoluto (Teto de 30s) aplicado a TODAS as políticas
+        buf.wait_if_full(BUFFER_CAP_S)
 
         # 3i. Log metrics
         logger.log_segment({

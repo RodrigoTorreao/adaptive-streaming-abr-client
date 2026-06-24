@@ -33,8 +33,12 @@ class Policy3(ABRPolicy):
     # ── Throughput e jitter tracking ─────────────────────────────────────────
 
     def update_throughput(self, measured_kbps: float, jitter_ms: float = 0.0) -> None:
-        self._throughput_ewma = _ALPHA * measured_kbps + (1 - _ALPHA) * self._throughput_ewma
-        self._jitter_ewma     = _BETA  * jitter_ms     + (1 - _BETA)  * self._jitter_ewma
+        if self._throughput_ewma == 0.0:
+            self._throughput_ewma = measured_kbps
+        else:
+            self._throughput_ewma = _ALPHA * measured_kbps + (1 - _ALPHA) * self._throughput_ewma
+        
+        self._jitter_ewma = _BETA * jitter_ms + (1 - _BETA) * self._jitter_ewma
 
     def _estimated_throughput(self) -> float:
         return self._throughput_ewma
@@ -45,13 +49,16 @@ class Policy3(ABRPolicy):
         return min(0.5, _GAMMA * self._jitter_ewma / 1000.0)
 
     def _buffer_factor(self, buffer_level_s: float) -> float:
-        if buffer_level_s < 4.0:
-            return 0.5   # crítico: muito conservador
-        if buffer_level_s < 8.0:
-            return 0.7   # baixo: conservador
-        if buffer_level_s < 12.0:
-            return 0.9   # alerta: levemente conservador
-        return 1.0        # confortável: sem penalidade de buffer
+        # Fator contínuo recalibrado para lidar com o Pacing
+        # Agora o fator máximo (1.5) é atingido antes da zona de Pacing (que puxa para ~12s)
+        if buffer_level_s <= 4.0:
+            return 0.5
+        elif buffer_level_s < 8.0:
+            return 0.5 + 0.5 * ((buffer_level_s - 4.0) / 4.0)  # Interpola 0.5 -> 1.0
+        elif buffer_level_s <= 11.0:
+            return 1.0 + 0.5 * ((buffer_level_s - 8.0) / 3.0)  # Interpola 1.0 -> 1.5
+        else:
+            return 1.5
 
     # ── Decisão de qualidade ─────────────────────────────────────────────────
 

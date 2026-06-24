@@ -105,3 +105,23 @@ def generate_graphs(csv_path: str) -> None:
 
     plt.savefig('graph_buffer.png')
     plt.close()
+
+    # -------------------------------------------------------------------------
+    # Gráfico 3: Variação de Atraso (Jitter) EWMA
+    # -------------------------------------------------------------------------
+    plt.figure(figsize=(10, 5))
+    plt.plot(df['segment'], df['jitter_network_ms'], color='lightgray', marker='.', label='Jitter Medido (ms)')
+    plt.plot(df['segment'], df['jitter_ewma_ms'], color='red', marker='o', label='Jitter EWMA (ms)', linewidth=2)
+
+    for i, seg in enumerate(failover_segments):
+        plt.axvline(x=seg, color='purple', linestyle='--', linewidth=1.5,
+                    label='Failover' if i == 0 else "")
+
+    plt.xlabel('Segmento')
+    plt.ylabel('Jitter (ms)')
+    plt.title('Entrega 2 - Variação de Atraso (Jitter)')
+    plt.legend()
+    plt.grid(True, linestyle='--')
+
+    plt.savefig('graph_jitter.png')
+    plt.close()
