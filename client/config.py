@@ -11,13 +11,13 @@ ACTIVE_POLICY = int(os.environ.get("ACTIVE_POLICY", 3))
 # ─────────────────────────────────────────────────────────────────────────────
 
 SAFETY_FACTOR = 0.92
-SEGMENT_DURATION = 4.0      # seconds of video per segment
+SEGMENT_DURATION = 2.0      # seconds of video per segment
 MIN_BUFFER_TO_PLAY = 4.0    # seconds needed for continuous play
 NUM_SEGMENTS = 30
 THROUGHPUT_WINDOW = 3       # number of past segments used for avg throughput
 CHUNK_SIZE = 4096           # bytes per HTTP read chunk
 IDENTIFY_HEADER = 'GRUPO 6' # identificador do grupo
-OUTPUT_CSV = "metrics.csv"
+OUTPUT_CSV = f"metrics_policy{ACTIVE_POLICY}.csv"
 
 # ── Buffer-Based ABR (Policy 2) ─────────────────────────────────────────────
 BUFFER_CRITICAL_S = 1.0   # Abaixo disso: rebuffering iminente

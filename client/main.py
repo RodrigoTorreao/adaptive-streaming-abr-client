@@ -75,6 +75,7 @@ def main():
 
         # 3c. Download segment (with failover on error for Entrega 2+)
         try:
+
             result = download_segment(server_url, chosen, seg_num)
             
         except Exception:
@@ -110,6 +111,9 @@ def main():
         rebuffer, stall_s = buf.check_rebuffer()
         buf.add_segment(seg_duration)
 
+        # Salva o valor do buffer ANTES do sleep/pacing para o log
+        buffer_level_before_sleep = min(BUFFER_CAP_S, buf.buffer_level_s)
+
         # ====================================================================
         # 3h. Cap buffer: Pacing (espera) feito APÓS o download do segmento.
         # Agora o "result" existe e não teremos mais erro no segmento 1.
@@ -119,7 +123,7 @@ def main():
     
             if buf.buffer_level_s >= (BUFFER_TARGET_S):
                 # Pega o tempo que sobrou do download para inteirar o segmento
-                wait_s = max(0.0, SEGMENT_DURATION - result.download_time_s)
+                wait_s = max(0.0, seg_duration - result.download_time_s)
         
             if wait_s > 0:
                 time.sleep(wait_s)
@@ -139,7 +143,7 @@ def main():
             "download_time_s": round(result.download_time_s, 4),
             "jitter_network_ms": round(result.jitter_network_ms, 2),
             "jitter_ewma_ms": round(jitter_ewma, 2),
-            "buffer_level_s": round(buf.buffer_level_s, 2),
+            "buffer_level_s": round(buffer_level_before_sleep, 2),
             "buffer_can_play": buffer_can_play,
             "rebuffer_event": 1 if rebuffer else 0,
             "stall_duration_s": round(stall_s, 3),
@@ -149,7 +153,7 @@ def main():
         print(
             f"[seg {seg_num:02d}] quality={chosen['quality']:5s}  "
             f"vazao={result.throughput_kbps:4.0f} kbps  "
-            f"buffer={buf.buffer_level_s:.1f}s  "
+            f"buffer={buffer_level_before_sleep:.1f}s  "
             f"can_play={True if buffer_can_play == 1 else False}"        
         )
 

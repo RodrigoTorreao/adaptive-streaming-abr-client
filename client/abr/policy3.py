@@ -21,7 +21,7 @@ from abr.base import ABRPolicy
 
 _ALPHA = 0.3   # suavização do throughput EWMA
 _BETA  = 0.3   # suavização do jitter EWMA
-_GAMMA = 1.0   # coeficiente de penalidade de jitter
+_GAMMA = 1.0  # coeficiente de penalidade de jitter
 
 
 class Policy3(ABRPolicy):
@@ -46,6 +46,7 @@ class Policy3(ABRPolicy):
     # ── Cálculos internos ────────────────────────────────────────────────────
 
     def _jitter_penalty(self) -> float:
+        # Teto da penalidade 50%
         return min(0.5, _GAMMA * self._jitter_ewma / 1000.0)
 
     def _buffer_factor(self, buffer_level_s: float) -> float:
@@ -53,7 +54,7 @@ class Policy3(ABRPolicy):
         # Agora o fator máximo (1.5) é atingido antes da zona de Pacing (que puxa para ~12s)
         if buffer_level_s <= 4.0:
             return 0.5
-        elif buffer_level_s < 8.0:
+        elif buffer_level_s <= 8.0:
             return 0.5 + 0.5 * ((buffer_level_s - 4.0) / 4.0)  # Interpola 0.5 -> 1.0
         elif buffer_level_s <= 11.0:
             return 1.0 + 0.5 * ((buffer_level_s - 8.0) / 3.0)  # Interpola 1.0 -> 1.5
